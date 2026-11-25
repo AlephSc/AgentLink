@@ -2,7 +2,28 @@
   "name": "universal-ai-bridge",
   "version": "0.1.0",
   "private": true,
-  "description": "Universal MCP broker for messages, shared data, and update notifications between AI agents",
+  "description": "Universal MCP broker for messaging, shared data, and update notifications between AI agents across clients",
+  "license": "MIT",
+  "author": "AlephSc",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AlephSc/AgentLink.git"
+  },
+  "bugs": {
+    "url": "https://github.com/AlephSc/AgentLink/issues"
+  },
+  "homepage": "https://github.com/AlephSc/AgentLink#readme",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ai-agents",
+    "agent-communication",
+    "sqlite",
+    "long-polling",
+    "claude-code",
+    "vscode",
+    "cursor"
+  ],
   "type": "module",
   "engines": {
     "node": ">=22.13"

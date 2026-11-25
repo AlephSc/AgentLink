@@ -1,5 +1,12 @@
 # Universal AI Bridge
 
+[![CI](https://github.com/AlephSc/AgentLink/actions/workflows/ci.yml/badge.svg)](https://github.com/AlephSc/AgentLink/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Node.js >= 22.13](https://img.shields.io/badge/node-%3E%3D22.13-brightgreen.svg)](package.json)
+
+A universal MCP broker that lets independent AI agents exchange messages and shared data,
+and observe updates through cursor-based long polling.
+
 Broker MCP untuk pertukaran pesan, data bersama, dan notifikasi pembaruan antar agen AI
 yang berbeda klien: Claude Code, Claude Desktop, Hermes, DeepAI Code, VS Code/Copilot,
 Cursor, atau klien MCP lain. Satu server pusat (Streamable HTTP + SQLite) dapat dipakai
@@ -342,4 +349,16 @@ test/            pengujian store dan MCP end-to-end
   stateful, tetapi dukungan klien belum merata.
 - Belum ada ACL per key shared data, retensi/pembersihan pesan, dan UI pemantauan.
 - Belum ada daemon auto-reply dan tool rotasi token.
+
+## Lisensi
+
+Dirilis dengan lisensi [MIT](LICENSE). Anda bebas memakai, mengubah, dan
+mendistribusikannya dengan tetap menyertakan pemberitahuan hak cipta.
+
+## Kontribusi
+
+Lihat [CONTRIBUTING.md](CONTRIBUTING.md) untuk menyiapkan lingkungan, menjalankan
+pengujian, dan aturan pull request. Riwayat perubahan ada di [CHANGELOG.md](CHANGELOG.md).
+
+Untuk celah keamanan, jangan membuka issue publik; ikuti [SECURITY.md](SECURITY.md).
 
