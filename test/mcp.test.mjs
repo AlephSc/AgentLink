@@ -44,11 +44,12 @@ async function call(client, name, args) {
   return result.structuredContent;
 }
 
-async function register(client, agentId) {
+async function register(client, agentId, device) {
   return call(client, "register_agent", {
     agent_id: agentId,
     name: agentId.toUpperCase(),
     registration_token: "registration-secret",
+    ...(device ? { device } : {}),
   });
 }
 
@@ -120,6 +121,58 @@ test("two independent MCP HTTP clients exchange messages and observe data via lo
   });
   assert.equal(conflict.isError, true);
   assert.match(conflict.content[0].text, /CONFLICT/);
+});
+
+test("agents share device and absolute path metadata for same-machine access", async (t) => {
+  const { url } = await fixture(t);
+  const alphaClient = await httpClient(t, url, "alpha-device-client");
+  const betaClient = await httpClient(t, url, "beta-device-client");
+  const gammaClient = await httpClient(t, url, "gamma-device-client");
+
+  const alpha = await register(alphaClient, "alpha", {
+    id: "device-one",
+    name: "Workstation",
+    platform: "windows",
+    workspace_path: "C:\\repo\\alpha",
+    home_path: "C:\\Users\\me",
+  });
+  const beta = await register(betaClient, "beta", {
+    id: "device-one",
+    name: "Workstation",
+    platform: "windows",
+    workspace_path: "C:\\repo\\beta",
+    home_path: "C:\\Users\\me",
+  });
+  const gamma = await register(gammaClient, "gamma", {
+    id: "device-two",
+    platform: "linux",
+    workspace_path: "/srv/gamma",
+  });
+
+  const listed = await call(alphaClient, "list_agents", {
+    agent_id: "alpha",
+    agent_token: alpha.agent_token,
+  });
+  const byId = Object.fromEntries(listed.agents.map((agent) => [agent.id, agent]));
+  assert.equal(byId.alpha.device.id, "device-one");
+  assert.equal(byId.alpha.device.workspace_path, "C:\\repo\\alpha");
+  assert.equal(byId.beta.same_device, true);
+  assert.equal(byId.gamma.same_device, false);
+  assert.equal(byId.gamma.device.workspace_path, "/srv/gamma");
+
+  const updated = await call(betaClient, "set_agent_context", {
+    agent_id: "beta",
+    agent_token: beta.agent_token,
+    device: { id: "device-one", workspace_path: "C:\\repo\\renamed" },
+  });
+  assert.equal(updated.agent.device.workspace_path, "C:\\repo\\renamed");
+  assert.equal(updated.agent.device.home_path, "C:\\Users\\me");
+
+  const gammaList = await call(gammaClient, "list_agents", {
+    agent_id: "gamma",
+    agent_token: gamma.agent_token,
+  });
+  assert.equal(gammaList.agents.find((agent) => agent.id === "alpha").same_device, false);
 });
 
 test("stdio shim exposes the same remote MCP broker", async (t) => {

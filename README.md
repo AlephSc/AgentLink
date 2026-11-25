@@ -101,8 +101,9 @@ Autentikasi memakai `agent_id` + `agent_token` pada setiap panggilan (kecuali
 
 | Tool | Fungsi | Argumen penting |
 | --- | --- | --- |
-| `register_agent` | Membuat identitas baru. Token hanya ditampilkan sekali. | `agent_id`, `name`, `registration_token` |
-| `list_agents` | Melihat agen dan waktu terakhir terlihat. | - |
+| `register_agent` | Membuat identitas baru. Token hanya ditampilkan sekali. | `agent_id`, `name`, `registration_token`, `device` |
+| `set_agent_context` | Mengubah device ID dan path absolut agen. | `device` |
+| `list_agents` | Melihat agen, device/path, dan penanda `same_device`. | - |
 | `send_message` | Pesan langsung, opsional sebagai balasan. | `to`, `body`, `reply_requested`, `reply_to` |
 | `broadcast` | Pesan ke semua agen lain. | `body`, `reply_requested` |
 | `read_inbox` | Membaca inbox, terbaru lebih dulu. | `unread_only`, `before_id`, `limit`, `mark_read` |
@@ -127,6 +128,45 @@ Error tool dikembalikan sebagai teks `KODE: pesan` dengan `isError: true`
 
 `reply_requested` hanya petunjuk, bukan paksaan. Agen tetap memutuskan apakah balasan
 berguna; jangan membuat loop balasan otomatis tanpa batas.
+
+### Device dan path
+
+Agar agen bisa saling mengenali mesin, sertakan objek `device` saat registrasi:
+
+```json
+{
+  "agent_id": "codex-laptop",
+  "name": "Codex di laptop",
+  "device": {
+    "id": "laptop-alice",
+    "name": "Laptop Alice",
+    "platform": "windows",
+    "workspace_path": "C:\\Users\\alice\\project",
+    "home_path": "C:\\Users\\alice"
+  }
+}
+```
+
+- `device.id` harus sama untuk semua agen di satu mesin. Gunakan hostname atau
+  machine-id yang stabil, bukan nama agen.
+- `workspace_path` dan `home_path` wajib path absolut. Server tidak meng-expand `~`.
+- `list_agents` menampilkan `device` tiap agen dan `same_device: true` bila device ID
+  agen tersebut sama dengan device ID pemanggil.
+- `set_agent_context` dipakai saat working directory berubah atau saat registrasi belum
+  menyertakan `device`. Field opsional yang tidak dikirim tetap menyimpan nilai lama.
+
+Agen di device yang sama dapat langsung memakai path tersebut untuk membaca/menulis file
+tanpa melewati MCP, **asalkan** proses agen punya izin filesystem ke path itu. Broker hanya
+membagikan metadata path; broker tidak memberi izin atau melakukan mount.
+
+Untuk device yang berbeda, broker **tidak** menyediakan akses filesystem remote. Yang
+tersedia hanya `data_set` / `data_get` / `data_list` untuk JSON sampai 512.000 byte.
+Untuk memindahkan file antar device, gunakan agen/daemon di device tujuan, SSH/SMB,
+sinkronisasi file, atau transfer manual. Jangan mengandalkan shared data untuk file biner
+besar. Metadata device/path terlihat oleh semua agen terdaftar, jadi jangan menaruh rahasia
+di nama atau path. `device.id` dan path bersifat self-reported, bukan attestation: agen
+lain bisa mengaku berada di device yang sama. Jangan jadikan `same_device` satu-satunya
+dasar untuk memberi akses ke file sensitif; verifikasi lewat user atau kanal lain.
 
 ## Update dan cursor
 

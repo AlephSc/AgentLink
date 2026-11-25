@@ -49,6 +49,66 @@ test("registration, authentication, direct messages, broadcasts, and read state"
   assert.deepEqual(unread.map((message) => message.id), [broadcast.id]);
 });
 
+test("device metadata links same-machine agents and exposes absolute paths", (t) => {
+  const broker = makeBroker({ registrationToken: "registration-secret" });
+  t.after(() => broker.close());
+
+  const alice = broker.registerAgent("alice", "Alice", "registration-secret", {
+    id: "device-alpha",
+    name: "Laptop A",
+    platform: "windows",
+    workspacePath: "C:\\work\\project",
+    homePath: "C:\\Users\\alice",
+  });
+  broker.registerAgent("bob", "Bob", "registration-secret", {
+    id: "device-alpha",
+    name: "Laptop A",
+    platform: "windows",
+    workspacePath: "C:\\work\\other",
+    homePath: "C:\\Users\\bob",
+  });
+  const carol = broker.registerAgent("carol", "Carol", "registration-secret", {
+    id: "device-beta",
+    platform: "linux",
+    workspacePath: "/srv/project",
+    homePath: "/home/carol",
+  });
+
+  assert.equal(alice.agent.device.id, "device-alpha");
+  assert.equal(alice.agent.device.workspace_path, "C:\\work\\project");
+  assert.equal("token_hash" in alice.agent, false);
+
+  const listed = broker.store.listAgents("alice");
+  const byId = Object.fromEntries(listed.map((agent) => [agent.id, agent]));
+  assert.equal(byId.alice.same_device, true);
+  assert.equal(byId.bob.same_device, true);
+  assert.equal(byId.carol.same_device, false);
+  assert.equal(byId.carol.device.workspace_path, "/srv/project");
+  assert.equal(byId.alice.device.name, "Laptop A");
+
+  const updated = broker.setAgentContext("carol", {
+    id: "device-beta",
+    workspacePath: "/srv/renamed",
+    platform: "linux",
+  });
+  assert.equal(updated.device.workspace_path, "/srv/renamed");
+  assert.equal(updated.device.home_path, "/home/carol", "omitted fields are preserved");
+  assert.equal(carol.agent.device.home_path, "/home/carol");
+
+  assert.throws(
+    () =>
+      broker.registerAgent("dave", "Dave", "registration-secret", {
+        id: "device-gamma",
+        workspacePath: "relative/path",
+      }),
+    /absolute path/,
+  );
+  assert.throws(
+    () => broker.registerAgent("eve", "Eve", "registration-secret", { id: "bad id" }),
+    /device.id/,
+  );
+});
+
 test("direct replies inherit the conversation and enforce reply depth and participants", (t) => {
   const broker = makeBroker({ registrationToken: "registration-secret" });
   t.after(() => broker.close());

@@ -2,7 +2,12 @@ import { timingSafeEqual } from "node:crypto";
 import { EventEmitter } from "node:events";
 import type { BridgeConfig } from "./config.js";
 import { BridgeError } from "./errors.js";
-import { BridgeStore, type ReadInboxOptions, type SendMessageInput } from "./store.js";
+import {
+  BridgeStore,
+  type AgentDeviceInput,
+  type ReadInboxOptions,
+  type SendMessageInput,
+} from "./store.js";
 
 class SlidingWindowRateLimiter {
   private readonly calls = new Map<string, number[]>();
@@ -36,7 +41,12 @@ export class BridgeBroker {
     this.store.close();
   }
 
-  registerAgent(agentId: string, name: string, registrationToken?: string) {
+  registerAgent(
+    agentId: string,
+    name: string,
+    registrationToken?: string,
+    device?: AgentDeviceInput,
+  ) {
     if (this.config.registrationToken) {
       const expected = Buffer.from(this.config.registrationToken);
       const actual = Buffer.from(registrationToken ?? "");
@@ -44,7 +54,13 @@ export class BridgeBroker {
         throw new BridgeError("Invalid registration_token", "UNAUTHORIZED");
       }
     }
-    const result = this.store.registerAgent(agentId, name);
+    const result = this.store.registerAgent(agentId, name, device);
+    this.changes.emit("change");
+    return result;
+  }
+
+  setAgentContext(agentId: string, device: AgentDeviceInput) {
+    const result = this.store.setAgentContext(agentId, device);
     this.changes.emit("change");
     return result;
   }

@@ -10,6 +10,20 @@ export interface AgentRow {
   token_hash: string;
   created_at: string;
   last_seen_at: string;
+  device_id: string | null;
+  device_name: string | null;
+  platform: string | null;
+  workspace_path: string | null;
+  home_path: string | null;
+  device_updated_at: string | null;
+}
+
+export interface AgentDeviceInput {
+  id: string;
+  name?: string;
+  platform?: string;
+  workspacePath?: string;
+  homePath?: string;
 }
 
 export interface MessageRow {
@@ -44,12 +58,70 @@ function sameHash(stored: string, candidate: string): boolean {
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
+function cleanText(value: string | undefined, field: string, max: number): string | undefined {
+  if (value === undefined) return undefined;
+  const clean = value.trim();
+  if (!clean || clean.length > max || /[\u0000-\u001f\u007f]/.test(clean)) {
+    throw new BridgeError(`${field} must contain 1-${max} printable characters`, "INVALID_INPUT");
+  }
+  return clean;
+}
+
+function cleanAbsolutePath(value: string | undefined, field: string): string | undefined {
+  if (value === undefined) return undefined;
+  const clean = value.trim();
+  const absolute =
+    /^[A-Za-z]:[\\/]/.test(clean) ||
+    /^\\\\[^\\]/.test(clean) ||
+    clean.startsWith("/");
+  if (!clean || clean.length > 1024 || !absolute || /[\u0000-\u001f\u007f]/.test(clean)) {
+    throw new BridgeError(`${field} must be an absolute path (max 1024 characters)`, "INVALID_INPUT");
+  }
+  return clean;
+}
+
+function normalizeDevice(device: AgentDeviceInput | undefined):
+  | {
+      id: string;
+      name: string | null;
+      platform: string | null;
+      workspacePath: string | null;
+      homePath: string | null;
+    }
+  | undefined {
+  if (!device) return undefined;
+  const id = cleanText(device.id, "device.id", 128);
+  if (!id || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(id)) {
+    throw new BridgeError(
+      "device.id must be 1-128 characters: letters, numbers, '.', '_', ':' or '-'",
+      "INVALID_INPUT",
+    );
+  }
+  return {
+    id,
+    name: cleanText(device.name, "device.name", 200) ?? null,
+    platform: cleanText(device.platform, "device.platform", 64) ?? null,
+    workspacePath: cleanAbsolutePath(device.workspacePath, "device.workspace_path") ?? null,
+    homePath: cleanAbsolutePath(device.homePath, "device.home_path") ?? null,
+  };
+}
+
 function publicAgent(row: AgentRow) {
   return {
     id: row.id,
     name: row.name,
     created_at: row.created_at,
     last_seen_at: row.last_seen_at,
+    device: row.device_id
+      ? {
+          id: row.device_id,
+          name: row.device_name,
+          platform: row.platform,
+          workspace_path: row.workspace_path,
+          home_path: row.home_path,
+          updated_at: row.device_updated_at,
+        }
+      : null,
   };
 }
 
@@ -160,6 +232,24 @@ export class BridgeStore {
       );
       CREATE INDEX IF NOT EXISTS events_cursor_idx ON events(id);
     `);
+
+    // Add device metadata columns to databases created before this feature.
+    const columns = new Set(
+      (this.db.prepare("PRAGMA table_info(agents)").all() as unknown as Array<{ name: string }>).map(
+        (column) => column.name,
+      ),
+    );
+    const additions: Array<[string, string]> = [
+      ["device_id", "TEXT"],
+      ["device_name", "TEXT"],
+      ["platform", "TEXT"],
+      ["workspace_path", "TEXT"],
+      ["home_path", "TEXT"],
+      ["device_updated_at", "TEXT"],
+    ];
+    for (const [name, type] of additions) {
+      if (!columns.has(name)) this.db.exec(`ALTER TABLE agents ADD COLUMN ${name} ${type};`);
+    }
   }
 
   close(): void {
@@ -178,7 +268,11 @@ export class BridgeStore {
     }
   }
 
-  registerAgent(id: string, name: string): { agent: ReturnType<typeof publicAgent>; token: string } {
+  registerAgent(
+    id: string,
+    name: string,
+    deviceInput?: AgentDeviceInput,
+  ): { agent: ReturnType<typeof publicAgent>; token: string } {
     if (!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/.test(id)) {
       throw new BridgeError(
         "agent_id must be 1-64 characters: letters, numbers, '.', '_' or '-'",
@@ -189,6 +283,7 @@ export class BridgeStore {
     if (!cleanName || cleanName.length > 200) {
       throw new BridgeError("name must contain 1-200 characters", "INVALID_INPUT");
     }
+    const device = normalizeDevice(deviceInput);
     const token = randomBytes(32).toString("base64url");
     const now = new Date().toISOString();
     return this.transaction(() => {
@@ -197,12 +292,62 @@ export class BridgeStore {
       }
       this.db
         .prepare(
-          "INSERT INTO agents(id, name, token_hash, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?)",
+          `INSERT INTO agents(
+             id, name, token_hash, created_at, last_seen_at,
+             device_id, device_name, platform, workspace_path, home_path, device_updated_at
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
-        .run(id, cleanName, hashToken(token), now, now);
+        .run(
+          id,
+          cleanName,
+          hashToken(token),
+          now,
+          now,
+          device?.id ?? null,
+          device?.name ?? null,
+          device?.platform ?? null,
+          device?.workspacePath ?? null,
+          device?.homePath ?? null,
+          device ? now : null,
+        );
       const agent = this.getAgent(id)!;
       this.insertEvent("agent", id, null, id, JSON.stringify({ agent }), now);
       return { agent, token };
+    });
+  }
+
+  setAgentContext(id: string, deviceInput: AgentDeviceInput): ReturnType<typeof publicAgent> {
+    const device = normalizeDevice(deviceInput);
+    if (!device) throw new BridgeError("device is required", "INVALID_INPUT");
+    if (!this.db.prepare("SELECT 1 FROM agents WHERE id = ?").get(id)) {
+      throw new BridgeError(`Agent '${id}' is not registered`, "NOT_FOUND");
+    }
+
+    const now = new Date().toISOString();
+    const updates = ["device_id = ?", "device_updated_at = ?"];
+    const values: Array<string | null> = [device.id, now];
+    if (deviceInput.name !== undefined) {
+      updates.push("device_name = ?");
+      values.push(device.name);
+    }
+    if (deviceInput.platform !== undefined) {
+      updates.push("platform = ?");
+      values.push(device.platform);
+    }
+    if (deviceInput.workspacePath !== undefined) {
+      updates.push("workspace_path = ?");
+      values.push(device.workspacePath);
+    }
+    if (deviceInput.homePath !== undefined) {
+      updates.push("home_path = ?");
+      values.push(device.homePath);
+    }
+
+    return this.transaction(() => {
+      this.db.prepare(`UPDATE agents SET ${updates.join(", ")} WHERE id = ?`).run(...values, id);
+      const agent = this.getAgent(id)!;
+      this.insertEvent("agent", id, null, id, JSON.stringify({ agent }), now);
+      return agent;
     });
   }
 
@@ -225,9 +370,18 @@ export class BridgeStore {
     return { ...publicAgent(row), last_seen_at: now };
   }
 
-  listAgents(): ReturnType<typeof publicAgent>[] {
+  listAgents(viewerId?: string): Array<ReturnType<typeof publicAgent> & { same_device: boolean }> {
     const rows = this.db.prepare("SELECT * FROM agents ORDER BY id").all() as unknown as AgentRow[];
-    return rows.map(publicAgent);
+    const viewer = viewerId
+      ? (this.db.prepare("SELECT device_id FROM agents WHERE id = ?").get(viewerId) as
+          | { device_id: string | null }
+          | undefined)
+      : undefined;
+    const viewerDeviceId = viewer?.device_id ?? null;
+    return rows.map((row) => ({
+      ...publicAgent(row),
+      same_device: Boolean(viewerDeviceId && row.device_id === viewerDeviceId),
+    }));
   }
 
   private insertEvent(
