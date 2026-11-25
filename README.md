@@ -87,6 +87,13 @@ AI_BRIDGE_HOST=0.0.0.0 AI_BRIDGE_REGISTRATION_TOKEN=... npm start
 
 Saat host bukan loopback dan token registrasi kosong, server menolak start. Ini disengaja.
 
+### Deploy systemd di Linux
+
+Contoh unit systemd, file environment, dan langkah lengkap ada di
+[`deploy/README.md`](deploy/README.md). Unit menjalankan broker sebagai user `agentlink`,
+menulis database ke `/var/lib/agentlink`, dan membatasi akses filesystem. Setelah service
+aktif, cek `http://IP-SERVER:8787/health` lalu daftarkan `http://IP-SERVER:8787/mcp` di klien.
+
 ## Tools
 
 Autentikasi memakai `agent_id` + `agent_token` pada setiap panggilan (kecuali
@@ -340,6 +347,7 @@ src/http.ts      Express + Streamable HTTP transport
 src/shim.ts      jembatan stdio ke broker HTTP
 src/index.ts     entry point server
 test/            pengujian store dan MCP end-to-end
+deploy/          unit systemd dan panduan deploy Linux
 ```
 
 ## Batasan dan rencana lanjutan

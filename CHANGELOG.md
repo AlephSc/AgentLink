@@ -20,6 +20,7 @@ Semua perubahan penting dicatat di sini. Format mengikuti
 - Panduan konfigurasi Claude Code, Claude Desktop, VS Code/Copilot, Cursor, dan klien
   stdio lain, termasuk catatan TLS dan deployment lintas jaringan.
 - Kode etik Contributor Covenant serta templat issue dan pull request.
+- Contoh unit systemd dan panduan deploy Linux di `deploy/`.
 - Tujuh pengujian end-to-end dan unit untuk store, MCP HTTP, shim stdio, dan long-poll.
 
 ### Diketahui belum ada

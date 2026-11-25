@@ -1,0 +1,34 @@
+[Unit]
+Description=AgentLink MCP broker
+Documentation=https://github.com/AlephSc/AgentLink
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=agentlink
+Group=agentlink
+WorkingDirectory=/opt/agentlink
+EnvironmentFile=/etc/agentlink.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node dist/index.js
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=15
+StateDirectory=agentlink
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target
