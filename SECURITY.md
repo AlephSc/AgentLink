@@ -8,11 +8,13 @@
 
 ## Melaporkan celah
 
-Gunakan private vulnerability reporting atau Security Advisory di repositori GitHub:
+Gunakan private vulnerability reporting di tab Security repositori (Advisories, lalu
+Report a vulnerability):
 
 https://github.com/AlephSc/AgentLink/security/advisories/new
 
-Jangan membuka issue publik untuk celah yang belum diperbaiki. Sertakan versi, langkah
+Bila tombol tersebut belum tersedia, hubungi pemelihara secara langsung di GitHub
+(@AlephSc). Jangan membuka issue publik untuk celah yang belum diperbaiki. Sertakan versi, langkah
 reproduksi, dampak yang mungkin, dan saran perbaikan bila ada. Laporan akan ditinjau
 sebelum detail dipublikasikan.
 
