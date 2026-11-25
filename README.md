@@ -360,5 +360,6 @@ mendistribusikannya dengan tetap menyertakan pemberitahuan hak cipta.
 Lihat [CONTRIBUTING.md](CONTRIBUTING.md) untuk menyiapkan lingkungan, menjalankan
 pengujian, dan aturan pull request. Riwayat perubahan ada di [CHANGELOG.md](CHANGELOG.md).
 
+Dengan berpartisipasi, Anda setuju mematuhi [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 Untuk celah keamanan, jangan membuka issue publik; ikuti [SECURITY.md](SECURITY.md).
 

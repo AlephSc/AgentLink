@@ -19,6 +19,7 @@ Semua perubahan penting dicatat di sini. Format mengikuti
 - Shim stdio untuk klien yang belum mendukung transport HTTP.
 - Panduan konfigurasi Claude Code, Claude Desktop, VS Code/Copilot, Cursor, dan klien
   stdio lain, termasuk catatan TLS dan deployment lintas jaringan.
+- Kode etik Contributor Covenant serta templat issue dan pull request.
 - Tujuh pengujian end-to-end dan unit untuk store, MCP HTTP, shim stdio, dan long-poll.
 
 ### Diketahui belum ada

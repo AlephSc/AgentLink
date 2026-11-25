@@ -41,6 +41,7 @@ Menambah tool baru berarti: implementasi di store/broker, schema di `mcp.ts`, pe
 3. Sertakan contoh panggilan tool untuk perubahan yang terlihat oleh agen.
 4. Jangan menyertakan token, database, file `.env`, atau data agen nyata.
 
-## Keamanan
+## Kode etik dan keamanan
 
-Jangan membuka issue publik untuk celah keamanan. Ikuti [SECURITY.md](SECURITY.md).
+Semua partisipan tunduk pada [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Jangan membuka
+issue publik untuk celah keamanan; ikuti [SECURITY.md](SECURITY.md).
