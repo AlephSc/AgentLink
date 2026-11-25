@@ -112,8 +112,9 @@ export class BridgeBroker {
 
       this.changes.on("change", check);
       signal?.addEventListener("abort", onAbort, { once: true });
+      // Keep the timer referenced: it resolves a promise the caller awaits, and an
+      // unref'd timer lets Node 22 drain the event loop before the promise settles.
       timer = setTimeout(() => finish(true), boundedTimeout * 1000);
-      timer.unref();
       // Register the listener before checking so a change cannot fall into a gap.
       check();
     });
